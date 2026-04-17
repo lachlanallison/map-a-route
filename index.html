@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Map a Route</title>
+    <meta
+      name="description"
+      content="Map running and cycling routes with distance, elevation, and snapping to paths. A fast, static route planner that runs in your browser."
+    />
+    <meta name="robots" content="index,follow" />
+    <meta name="author" content="Map a Route" />
+    <meta name="application-name" content="Map a Route" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="geo.region" content="WORLD" />
+    <meta name="geo.placename" content="Global" />
+    <meta name="geo.position" content="0.0000;0.0000" />
+    <meta name="ICBM" content="0.0000, 0.0000" />
+    <meta property="og:title" content="Map a Route" />
+    <meta
+      property="og:description"
+      content="Plan running and cycling routes with distance, elevation, and optional path snapping."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="assets/og-image.svg" />
+    <meta property="og:image:alt" content="Map a Route preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Map a Route" />
+    <meta
+      name="twitter:description"
+      content="Plan running and cycling routes with distance, elevation, and optional path snapping."
+    />
+    <meta name="twitter:image" content="assets/og-image.svg" />
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.svg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Map a Route",
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "All",
+        "description": "Plan running and cycling routes with distance, elevation, and snapping to paths.",
+        "browserRequirements": "Requires JavaScript and internet access for map tiles and routing."
+      }
+    </script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div>
+        <h1>Map a Route</h1>
+        <p>
+          Click the map to add points and measure distance. Use the buttons to
+          undo or clear. Elevation uses a public dataset without API keys.
+        </p>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Distance</span>
+          <span id="distanceValue" class="stat-value">0.00 km</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Elevation Gain</span>
+          <span id="gainValue" class="stat-value">0 m</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Elevation Loss</span>
+          <span id="lossValue" class="stat-value">0 m</span>
+        </div>
+      </div>
+      <button id="themeBtn" type="button" class="pill-button">
+        🌙 Dark mode
+      </button>
+    </header>
+
+    <main class="main">
+      <section class="map-panel">
+        <div id="map" class="map"></div>
+        <div class="controls">
+          <button id="undoBtn" type="button">Undo last point</button>
+          <button id="clearBtn" type="button">Clear route</button>
+          <button id="loopBtn" type="button">Finish loop</button>
+          <button id="rideBackBtn" type="button">Ride back same route</button>
+          <button id="elevationBtn" type="button">Update elevation</button>
+          <button id="unitsBtn" type="button" class="pill-button">
+            🧭 Miles
+          </button>
+        </div>
+        <div class="controls secondary">
+          <label class="toggle">
+            <input id="routingToggle" type="checkbox" />
+            <span>Snap to roads</span>
+          </label>
+          <label class="toggle">
+            <input id="autoRouteToggle" type="checkbox" checked />
+            <span>Auto route</span>
+          </label>
+          <button id="updateRouteBtn" type="button" class="pill-button">
+            🔄 Update route
+          </button>
+          <label class="toggle">
+            <span>Activity</span>
+            <select id="activitySelect">
+              <option value="cycling" selected>Cycling</option>
+              <option value="running">Running</option>
+            </select>
+          </label>
+          <label class="toggle">
+            <span>Routing</span>
+            <select id="providerSelect">
+              <option value="ors" selected>OpenRouteService</option>
+              <option value="valhalla">Valhalla (no key)</option>
+            </select>
+          </label>
+          <label class="toggle">
+            <span>Cycling preference</span>
+            <select id="cyclingPriority">
+              <option value="paths" selected>Prefer cycleways</option>
+              <option value="balanced">Balanced</option>
+              <option value="roads">Prefer roads</option>
+            </select>
+          </label>
+          <div class="api-key">
+            <label class="toggle" for="apiKeyInput">
+              <span>ORS API key</span>
+            </label>
+            <input
+              id="apiKeyInput"
+              type="password"
+              placeholder="Paste OpenRouteService key"
+              autocomplete="off"
+            />
+            <button id="saveKeyBtn" type="button" class="pill-button">
+              🔑 Save
+            </button>
+            <button id="editKeyBtn" type="button" class="pill-button">
+              ✏️ Edit
+            </button>
+            <button id="helpKeyBtn" type="button" class="pill-button">
+              ❓ Why
+            </button>
+          </div>
+          <button id="locateBtn" type="button">Locate me</button>
+          <button id="exportBtn" type="button">Export GPX</button>
+          <button id="directionsToggleBtn" type="button" class="pill-button">
+            🧭 Show directions
+          </button>
+        </div>
+        <div class="controls secondary">
+          <div class="route-storage">
+            <label class="toggle" for="routeNameInput">
+              <span>Save route</span>
+            </label>
+            <input
+              id="routeNameInput"
+              type="text"
+              placeholder="Route name"
+              autocomplete="off"
+            />
+            <button id="saveRouteBtn" type="button" class="pill-button">
+              💾 Save
+            </button>
+          </div>
+          <div class="route-storage">
+            <label class="toggle" for="savedRoutesSelect">
+              <span>Saved routes</span>
+            </label>
+            <select id="savedRoutesSelect"></select>
+            <button id="loadRouteBtn" type="button" class="pill-button">
+              📂 Load
+            </button>
+            <button id="deleteRouteBtn" type="button" class="pill-button">
+              🗑️ Delete
+            </button>
+          </div>
+          <div class="route-storage">
+            <label class="toggle" for="gpxInput">
+              <span>Import GPX</span>
+            </label>
+            <input id="gpxInput" type="file" accept=".gpx,application/gpx+xml" />
+          </div>
+        </div>
+        <div id="status" class="status"></div>
+        <section id="debugPanel" class="debug">
+          <div class="debug-header">
+            <h2>Debug</h2>
+            <div class="debug-actions">
+              <button id="testElevationBtn" type="button" class="pill-button">
+                🧪 Test elevation
+              </button>
+              <button id="clearDebugBtn" type="button" class="pill-button">
+                🧹 Clear
+              </button>
+              <button id="debugToggleBtn" type="button" class="pill-button">
+                Hide debug
+              </button>
+            </div>
+          </div>
+          <ul id="debugList"></ul>
+        </section>
+        <aside class="legend">
+          <div class="legend-title">CyclOSM legend</div>
+          <div class="legend-row">
+            <span>
+              Styling varies by zoom level and region. Use the official legend
+              for accurate cycleway types.
+            </span>
+          </div>
+          <a
+            class="legend-link"
+            href="https://www.cyclosm.org/docs/legend/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Full CyclOSM legend
+          </a>
+        </aside>
+        <section id="directionsPanel" class="directions hidden">
+          <h2>Turn-by-turn directions</h2>
+          <ol id="directionsList"></ol>
+        </section>
+        <section class="chart-panel">
+          <h2>Elevation profile</h2>
+          <div class="chart-wrap">
+            <canvas id="elevationChart"></canvas>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Map tiles: CyclOSM (OpenStreetMap). Elevation: OpenTopoData public API.
+        Routing: OpenRouteService (API key) or Valhalla (no key). This page is
+        static and runs entirely in your browser.
+      </p>
+    </footer>
+
+    <div id="apiHelpModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <button id="closeModalBtn" type="button" class="modal-close">
+          ✕
+        </button>
+        <h3>Why an OpenRouteService key?</h3>
+        <p>
+          OpenRouteService provides the best cycling and running routing, but it
+          requires a free API key. Your key stays in your browser only.
+        </p>
+        <ol>
+          <li>Open the OpenRouteService signup page.</li>
+          <li>Create a free account and verify your email.</li>
+          <li>Create a new token in the dashboard.</li>
+          <li>Paste the key here and click “Save”.</li>
+        </ol>
+        <a
+          class="modal-link"
+          href="https://openrouteservice.org/dev/#/signup"
+          target="_blank"
+          rel="noreferrer"
+        >
+          OpenRouteService signup
+        </a>
+      </div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
