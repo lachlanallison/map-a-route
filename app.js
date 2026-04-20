@@ -9,15 +9,27 @@ L.tileLayer("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
   maxZoom: 20,
 }).addTo(map);
 
+const ACCENT = getComputedStyle(document.documentElement)
+  .getPropertyValue("--accent")
+  .trim() || "#2f6b4f";
+const ROUTE_COLOR = getComputedStyle(document.documentElement)
+  .getPropertyValue("--route")
+  .trim() || "#dd6b20";
+
 const directPolyline = L.polyline([], {
-  color: "#9ca3af",
-  weight: 3,
-  dashArray: "4 6",
+  color: ACCENT,
+  weight: 4,
+  opacity: 0.85,
+  dashArray: "2 8",
+  lineCap: "round",
 }).addTo(map);
 
 const routePolyline = L.polyline([], {
-  color: "#f97316",
-  weight: 4,
+  color: ROUTE_COLOR,
+  weight: 5,
+  opacity: 0.95,
+  lineCap: "round",
+  lineJoin: "round",
 }).addTo(map);
 
 const markers = [];
@@ -43,45 +55,51 @@ let autoRoutingEnabled = true;
 const routeCache = new Map();
 const timers = new Map();
 
-const distanceValue = document.getElementById("distanceValue");
-const gainValue = document.getElementById("gainValue");
-const lossValue = document.getElementById("lossValue");
-const statusEl = document.getElementById("status");
-const undoBtn = document.getElementById("undoBtn");
-const clearBtn = document.getElementById("clearBtn");
-const loopBtn = document.getElementById("loopBtn");
-const rideBackBtn = document.getElementById("rideBackBtn");
-const elevationBtn = document.getElementById("elevationBtn");
-const unitsBtn = document.getElementById("unitsBtn");
-const routingToggle = document.getElementById("routingToggle");
-const autoRouteToggle = document.getElementById("autoRouteToggle");
-const updateRouteBtn = document.getElementById("updateRouteBtn");
-const activitySelect = document.getElementById("activitySelect");
-const cyclingPriority = document.getElementById("cyclingPriority");
-const providerSelect = document.getElementById("providerSelect");
-const apiKeyInput = document.getElementById("apiKeyInput");
-const saveKeyBtn = document.getElementById("saveKeyBtn");
-const editKeyBtn = document.getElementById("editKeyBtn");
-const helpKeyBtn = document.getElementById("helpKeyBtn");
-const apiHelpModal = document.getElementById("apiHelpModal");
-const closeModalBtn = document.getElementById("closeModalBtn");
-const locateBtn = document.getElementById("locateBtn");
-const exportBtn = document.getElementById("exportBtn");
-const themeBtn = document.getElementById("themeBtn");
-const directionsToggleBtn = document.getElementById("directionsToggleBtn");
-const directionsPanel = document.getElementById("directionsPanel");
-const directionsList = document.getElementById("directionsList");
-const debugPanel = document.getElementById("debugPanel");
-const debugList = document.getElementById("debugList");
-const debugToggleBtn = document.getElementById("debugToggleBtn");
-const testElevationBtn = document.getElementById("testElevationBtn");
-const clearDebugBtn = document.getElementById("clearDebugBtn");
-const routeNameInput = document.getElementById("routeNameInput");
-const saveRouteBtn = document.getElementById("saveRouteBtn");
-const savedRoutesSelect = document.getElementById("savedRoutesSelect");
-const loadRouteBtn = document.getElementById("loadRouteBtn");
-const deleteRouteBtn = document.getElementById("deleteRouteBtn");
-const gpxInput = document.getElementById("gpxInput");
+const $ = (id) => document.getElementById(id);
+
+const distanceValue = $("distanceValue");
+const gainValue = $("gainValue");
+const lossValue = $("lossValue");
+const statusEl = $("status");
+const mapHint = $("mapHint");
+const pointCount = $("pointCount");
+const undoBtn = $("undoBtn");
+const clearBtn = $("clearBtn");
+const loopBtn = $("loopBtn");
+const rideBackBtn = $("rideBackBtn");
+const elevationBtn = $("elevationBtn");
+const unitsBtn = $("unitsBtn");
+const routingToggle = $("routingToggle");
+const autoRouteToggle = $("autoRouteToggle");
+const updateRouteBtn = $("updateRouteBtn");
+const routingOptions = $("routingOptions");
+const activitySelect = $("activitySelect");
+const cyclingPriority = $("cyclingPriority");
+const providerSelect = $("providerSelect");
+const apiKeyInput = $("apiKeyInput");
+const apiKeyGroup = $("apiKeyGroup");
+const saveKeyBtn = $("saveKeyBtn");
+const editKeyBtn = $("editKeyBtn");
+const helpKeyBtn = $("helpKeyBtn");
+const apiHelpModal = $("apiHelpModal");
+const closeModalBtn = $("closeModalBtn");
+const locateBtn = $("locateBtn");
+const exportBtn = $("exportBtn");
+const themeBtn = $("themeBtn");
+const directionsToggleBtn = $("directionsToggleBtn");
+const directionsPanel = $("directionsPanel");
+const directionsList = $("directionsList");
+const debugPanel = $("debugPanel");
+const debugList = $("debugList");
+const debugToggleBtn = $("debugToggleBtn");
+const testElevationBtn = $("testElevationBtn");
+const clearDebugBtn = $("clearDebugBtn");
+const routeNameInput = $("routeNameInput");
+const saveRouteBtn = $("saveRouteBtn");
+const savedRoutesSelect = $("savedRoutesSelect");
+const loadRouteBtn = $("loadRouteBtn");
+const deleteRouteBtn = $("deleteRouteBtn");
+const gpxInput = $("gpxInput");
 
 const METERS_IN_KM = 1000;
 const METERS_IN_MILE = 1609.344;
@@ -89,23 +107,25 @@ const ORS_URL = "https://api.openrouteservice.org/v2/directions";
 const ORS_KEY_STORAGE = "ors-api-key";
 const VALHALLA_URL = "https://valhalla1.openstreetmap.de/route?json=";
 const LOCATION_STORAGE = "map-route-start-location";
-const DEBUG_DEFAULT_OPEN = true;
 const CURRENT_ROUTE_STORAGE = "map-route-current";
 const SAVED_ROUTES_STORAGE = "map-route-saved";
+const THEME_STORAGE = "map-route-theme";
+const UNITS_STORAGE = "map-route-units";
+const DEBUG_STORAGE = "map-route-debug-open";
 
 const setStatus = (message, isError = false) => {
   statusEl.textContent = message;
-  statusEl.style.color = isError ? "#b91c1c" : "#374151";
-  const item = document.createElement("li");
-  item.textContent = message;
-  debugList.prepend(item);
+  statusEl.classList.toggle("error", Boolean(isError));
 };
 
 const logDebug = (message) => {
   const item = document.createElement("li");
-  item.textContent = message;
+  const time = new Date().toLocaleTimeString([], { hour12: false });
+  item.textContent = `${time}  ${message}`;
   debugList.prepend(item);
-  console.debug(message);
+  while (debugList.children.length > 200) {
+    debugList.removeChild(debugList.lastChild);
+  }
 };
 
 const clearDebugLog = () => {
@@ -179,6 +199,20 @@ const updateDistance = () => {
   distanceValue.textContent = formatDistance(totalMeters);
 };
 
+const updateHint = () => {
+  if (!mapHint) return;
+  if (latlngs.length === 0) {
+    mapHint.classList.remove("hidden");
+    mapHint.firstElementChild.textContent =
+      "Click the map to add your first point.";
+  } else if (latlngs.length === 1) {
+    mapHint.classList.remove("hidden");
+    mapHint.firstElementChild.textContent = "Keep clicking to extend the route.";
+  } else {
+    mapHint.classList.add("hidden");
+  }
+};
+
 const updateButtons = () => {
   const hasPoints = latlngs.length > 0;
   const hasRoute = latlngs.length > 1;
@@ -188,6 +222,12 @@ const updateButtons = () => {
   rideBackBtn.disabled = latlngs.length < 2;
   elevationBtn.disabled = !hasRoute;
   exportBtn.disabled = !hasRoute;
+  if (pointCount) {
+    pointCount.textContent = `${latlngs.length} ${
+      latlngs.length === 1 ? "point" : "points"
+    }`;
+  }
+  updateHint();
 };
 
 const updateCyclingControls = () => {
@@ -199,7 +239,16 @@ const updateProviderControls = () => {
   const usingOrs = providerSelect.value === "ors";
   apiKeyInput.disabled = !usingOrs;
   saveKeyBtn.disabled = !usingOrs;
+  editKeyBtn.disabled = !usingOrs;
   helpKeyBtn.disabled = !usingOrs;
+  if (apiKeyGroup) {
+    apiKeyGroup.style.display = usingOrs ? "" : "none";
+  }
+};
+
+const updateRoutingOptionsState = () => {
+  if (!routingOptions) return;
+  routingOptions.setAttribute("aria-disabled", routingEnabled ? "false" : "true");
 };
 
 const formatStepDistance = (meters) => {
@@ -226,8 +275,7 @@ const formatChartDistance = (value) => {
 const clearDirections = () => {
   directionsList.innerHTML = "";
   directionsPanel.classList.add("hidden");
-  directionsToggleBtn.textContent = "🧭 Show directions";
-  directionsToggleBtn.disabled = true;
+  if (directionsToggleBtn) directionsToggleBtn.textContent = "Hide";
 };
 
 const renderDirections = (steps) => {
@@ -238,11 +286,14 @@ const renderDirections = (steps) => {
   }
   steps.forEach((step) => {
     const item = document.createElement("li");
-    const distance = step.distance ? ` (${formatStepDistance(step.distance)})` : "";
+    const distance = step.distance
+      ? ` (${formatStepDistance(step.distance)})`
+      : "";
     item.textContent = `${step.instruction || step.name || "Continue"}${distance}`;
     directionsList.appendChild(item);
   });
-  directionsToggleBtn.disabled = false;
+  directionsPanel.classList.remove("hidden");
+  if (directionsToggleBtn) directionsToggleBtn.textContent = "Hide";
 };
 
 const updatePolylines = () => {
@@ -259,7 +310,7 @@ const updatePolylines = () => {
   }
   const activePath = getActivePath();
   if (allowAutoFit && activePath.length > 1) {
-    map.fitBounds(L.latLngBounds(activePath), { padding: [30, 30] });
+    map.fitBounds(L.latLngBounds(activePath), { padding: [40, 40] });
   }
 };
 
@@ -277,7 +328,7 @@ const clearRouteSegments = () => {
 const clearRideBack = () => {
   rideBackEnabled = false;
   rideBackGeometry = null;
-  rideBackBtn.textContent = "Ride back same route";
+  rideBackBtn.textContent = "Out & back";
 };
 
 const serializeRoute = () => ({
@@ -291,15 +342,23 @@ const serializeRoute = () => ({
 });
 
 const persistCurrentRoute = () => {
-  if (latlngs.length < 2) {
-    localStorage.removeItem(CURRENT_ROUTE_STORAGE);
-    return;
+  try {
+    if (latlngs.length < 2) {
+      localStorage.removeItem(CURRENT_ROUTE_STORAGE);
+      return;
+    }
+    localStorage.setItem(CURRENT_ROUTE_STORAGE, JSON.stringify(serializeRoute()));
+  } catch (_) {
+    /* storage may be full or unavailable */
   }
-  localStorage.setItem(CURRENT_ROUTE_STORAGE, JSON.stringify(serializeRoute()));
 };
 
 const clearCurrentRoute = () => {
-  localStorage.removeItem(CURRENT_ROUTE_STORAGE);
+  try {
+    localStorage.removeItem(CURRENT_ROUTE_STORAGE);
+  } catch (_) {
+    /* ignore */
+  }
 };
 
 const loadSavedRoutes = () => {
@@ -312,7 +371,11 @@ const loadSavedRoutes = () => {
 };
 
 const saveRoutesList = (routes) => {
-  localStorage.setItem(SAVED_ROUTES_STORAGE, JSON.stringify(routes));
+  try {
+    localStorage.setItem(SAVED_ROUTES_STORAGE, JSON.stringify(routes));
+  } catch (error) {
+    setStatus("Unable to save — browser storage is full.", true);
+  }
 };
 
 const refreshSavedRoutesSelect = () => {
@@ -320,44 +383,41 @@ const refreshSavedRoutesSelect = () => {
   savedRoutesSelect.innerHTML = "";
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = routes.length ? "Select a route" : "No saved routes";
+  placeholder.textContent = routes.length ? "Select a saved route…" : "No saved routes yet";
   savedRoutesSelect.appendChild(placeholder);
-  routes.forEach((route) => {
-    const option = document.createElement("option");
-    option.value = route.id;
-    option.textContent = route.name;
-    savedRoutesSelect.appendChild(option);
-  });
+  routes
+    .slice()
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+    .forEach((route) => {
+      const option = document.createElement("option");
+      option.value = route.id;
+      option.textContent = route.name;
+      savedRoutesSelect.appendChild(option);
+    });
 };
 
 const applyRouteData = (data) => {
   if (!data?.points || data.points.length < 2) {
     return;
   }
-  clearRoute();
+  clearRoute({ silent: true });
   data.points.forEach((point) => {
     const latlng = L.latLng(point.lat, point.lng);
     latlngs.push(latlng);
-    const marker = L.circleMarker(latlng, {
-      radius: 5,
-      color: "#1f2937",
-      weight: 1,
-      fillColor: "#ffffff",
-      fillOpacity: 1,
-    }).addTo(map);
-    markers.push(marker);
+    markers.push(createMarker(latlng));
   });
   loopEnabled = Boolean(data.loopEnabled);
   loopBtn.textContent = loopEnabled ? "Remove loop" : "Finish loop";
   rideBackEnabled = Boolean(data.rideBackEnabled);
-  rideBackBtn.textContent = rideBackEnabled ? "Remove ride back" : "Ride back same route";
+  rideBackBtn.textContent = rideBackEnabled ? "Remove out & back" : "Out & back";
   activitySelect.value = data.activity || "cycling";
   routingToggle.checked = Boolean(data.routingEnabled);
   routingEnabled = routingToggle.checked;
-  providerSelect.value = data.provider || "ors";
+  providerSelect.value = data.provider || "valhalla";
   cyclingPriority.value = data.cyclingPriority || "paths";
   updateCyclingControls();
   updateProviderControls();
+  updateRoutingOptionsState();
   allowAutoFit = true;
   routeGeometry = null;
   routeDistanceMeters = 0;
@@ -379,24 +439,26 @@ const restoreCurrentRoute = () => {
   try {
     const raw = localStorage.getItem(CURRENT_ROUTE_STORAGE);
     if (!raw) {
-      return;
+      return false;
     }
     const data = JSON.parse(raw);
     applyRouteData(data);
-    setStatus("Restored last route.");
+    setStatus("Restored your last route.");
+    return true;
   } catch (error) {
-    return;
+    return false;
   }
 };
 
 const saveNamedRoute = () => {
   const name = routeNameInput.value.trim();
   if (!name) {
-    setStatus("Enter a route name to save.", true);
+    setStatus("Enter a name to save this route.", true);
+    routeNameInput.focus();
     return;
   }
   if (latlngs.length < 2) {
-    setStatus("Add at least two points to save a route.", true);
+    setStatus("Add at least two points before saving.", true);
     return;
   }
   const routes = loadSavedRoutes();
@@ -412,47 +474,55 @@ const saveNamedRoute = () => {
   };
   if (existingIndex >= 0) {
     routes[existingIndex] = entry;
+    setStatus(`Updated "${name}".`);
   } else {
     routes.push(entry);
+    setStatus(`Saved "${name}".`);
   }
   saveRoutesList(routes);
   refreshSavedRoutesSelect();
+  savedRoutesSelect.value = entry.id;
   routeNameInput.value = "";
-  setStatus("Route saved.");
 };
 
 const loadNamedRoute = () => {
   const id = savedRoutesSelect.value;
   if (!id) {
-    setStatus("Select a saved route to load.", true);
+    setStatus("Pick a saved route to load.", true);
     return;
   }
   const routes = loadSavedRoutes();
   const route = routes.find((entry) => entry.id === id);
   if (!route) {
-    setStatus("Saved route not found.", true);
+    setStatus("That saved route could not be found.", true);
     return;
   }
   applyRouteData(route.data);
-  setStatus(`Loaded route: ${route.name}`);
+  setStatus(`Loaded "${route.name}".`);
 };
 
 const deleteNamedRoute = () => {
   const id = savedRoutesSelect.value;
   if (!id) {
-    setStatus("Select a saved route to delete.", true);
+    setStatus("Pick a saved route to delete.", true);
     return;
   }
-  const routes = loadSavedRoutes().filter((route) => route.id !== id);
-  saveRoutesList(routes);
+  const routes = loadSavedRoutes();
+  const route = routes.find((entry) => entry.id === id);
+  const filtered = routes.filter((entry) => entry.id !== id);
+  saveRoutesList(filtered);
   refreshSavedRoutesSelect();
-  setStatus("Saved route deleted.");
+  setStatus(route ? `Deleted "${route.name}".` : "Route deleted.");
 };
 
 const parseGpx = async (file) => {
   const text = await file.text();
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, "application/xml");
+  const parseError = doc.querySelector("parsererror");
+  if (parseError) {
+    throw new Error("Invalid GPX file.");
+  }
   const points = Array.from(doc.querySelectorAll("trkpt, rtept")).map((node) => ({
     lat: parseFloat(node.getAttribute("lat")),
     lng: parseFloat(node.getAttribute("lon")),
@@ -468,13 +538,14 @@ const handleGpxImport = async (event) => {
   try {
     const points = await parseGpx(file);
     if (points.length < 2) {
-      setStatus("GPX file has no usable track points.", true);
+      setStatus("This GPX file has no usable track points.", true);
       return;
     }
     applyRouteData({ points, loopEnabled: false, rideBackEnabled: false });
-    setStatus("GPX route loaded.");
+    setStatus(`Imported ${points.length} points from ${file.name}.`);
   } catch (error) {
-    setStatus("Unable to load GPX file.", true);
+    logDebug(`GPX import error: ${error?.message || error}`);
+    setStatus("Unable to read that GPX file.", true);
   } finally {
     gpxInput.value = "";
   }
@@ -504,30 +575,37 @@ const scheduleRoutingUpdate = (delay = 800) => {
   }, delay);
 };
 
-const addPoint = (latlng) => {
-  latlngs.push(latlng);
-  const marker = L.circleMarker(latlng, {
-    radius: 5,
-    color: "#1f2937",
-    weight: 1,
+const createMarker = (latlng) =>
+  L.circleMarker(latlng, {
+    radius: 6,
+    color: ACCENT,
+    weight: 2,
     fillColor: "#ffffff",
     fillOpacity: 1,
+    pane: "markerPane",
   }).addTo(map);
-  markers.push(marker);
-  allowAutoFit = true;
+
+const addPoint = (latlng) => {
+  latlngs.push(latlng);
+  markers.push(createMarker(latlng));
+  allowAutoFit = false;
   clearRideBack();
   clearRouteSegments();
   resetElevation();
   updatePolylines();
   updateDistance();
   updateButtons();
-  setStatus("Point added.");
+  setStatus(
+    latlngs.length === 1
+      ? "First point placed."
+      : `Point ${latlngs.length} added.`
+  );
   scheduleRoutingUpdate();
   scheduleElevationUpdate();
   persistCurrentRoute();
 };
 
-const clearRoute = () => {
+const clearRoute = ({ silent = false } = {}) => {
   markers.forEach((marker) => marker.remove());
   markers.length = 0;
   latlngs.length = 0;
@@ -546,7 +624,9 @@ const clearRoute = () => {
   clearCurrentRoute();
   updateDistance();
   updateButtons();
-  setStatus("Route cleared.");
+  if (!silent) {
+    setStatus("Route cleared.");
+  }
 };
 
 const undoPoint = () => {
@@ -555,11 +635,36 @@ const undoPoint = () => {
     marker.remove();
   }
   latlngs.pop();
+  allowAutoFit = false;
+  clearRideBack();
+
+  if (latlngs.length === 0) {
+    routeGeometry = null;
+    routeDistanceMeters = 0;
+    invalidateRoute();
+    clearRouteSegments();
+    resetElevation();
+    clearDirections();
+    updatePolylines();
+    updateDistance();
+    updateButtons();
+    setStatus("Route cleared.");
+    clearCurrentRoute();
+    return;
+  }
+
+  const served = tryApplyCachedRouteForCurrentPath({ silent: true });
+  if (served) {
+    invalidateRoute();
+    updateButtons();
+    setStatus("Last point removed.");
+    persistCurrentRoute();
+    return;
+  }
+
   routeGeometry = null;
   routeDistanceMeters = 0;
   invalidateRoute();
-  allowAutoFit = latlngs.length > 1;
-  clearRideBack();
   clearRouteSegments();
   resetElevation();
   clearDirections();
@@ -620,7 +725,7 @@ const getRouteCacheKey = (provider, profile, path, extra = {}) =>
     extra,
   });
 
-const applyCachedRoute = (cached) => {
+const applyCachedRoute = (cached, { fit = false, silent = false } = {}) => {
   routeGeometry = cached.geometry
     ? cached.geometry.map((point) => L.latLng(point.lat, point.lng))
     : null;
@@ -630,21 +735,49 @@ const applyCachedRoute = (cached) => {
       )
     : null;
   routeDistanceMeters = cached.distance || 0;
+  if (rideBackEnabled && routeGeometry) {
+    rideBackGeometry = buildRideBackGeometry(routeGeometry);
+  }
   renderDirections(cached.steps || []);
-  allowAutoFit = true;
+  allowAutoFit = fit;
   resetElevation();
   updatePolylines();
   updateDistance();
-  setStatus("Routing updated (cached).");
+  if (!silent) setStatus("Route restored from cache.");
   scheduleElevationUpdate();
+};
+
+const getCurrentRouteCacheKey = () => {
+  if (!routingEnabled || latlngs.length < 2) return null;
+  const rawPath = loopEnabled ? [...latlngs, latlngs[0]] : latlngs;
+  const path = downsampleRoutePoints(rawPath, 40);
+  if (providerSelect.value === "ors") {
+    const profile = getRoutingProfile();
+    return getRouteCacheKey("ors", profile, path, {
+      cyclingPreference: cyclingPriority.value,
+    });
+  }
+  const costing = activitySelect.value === "running" ? "pedestrian" : "bicycle";
+  return getRouteCacheKey("valhalla", costing, path, {
+    useRoads: getCyclingUseRoads(),
+  });
+};
+
+const tryApplyCachedRouteForCurrentPath = ({ silent = false } = {}) => {
+  const key = getCurrentRouteCacheKey();
+  if (!key || !routeCache.has(key)) return false;
+  applyCachedRoute(routeCache.get(key), { fit: false, silent });
+  return true;
 };
 
 const cacheRoute = (key, geometry, segments, distance, steps) => {
   routeCache.set(key, {
-    geometry: geometry?.map((point) => ({ lat: point.lat, lng: point.lng })) || null,
-    segments: segments?.map((segment) =>
-      segment.map((point) => ({ lat: point.lat, lng: point.lng }))
-    ) || null,
+    geometry:
+      geometry?.map((point) => ({ lat: point.lat, lng: point.lng })) || null,
+    segments:
+      segments?.map((segment) =>
+        segment.map((point) => ({ lat: point.lat, lng: point.lng }))
+      ) || null,
     distance,
     steps: steps || [],
   });
@@ -763,7 +896,7 @@ const toggleRideBack = () => {
     } else {
       rideBackGeometry = buildRideBackGeometry(getDirectPathWithLoop());
     }
-    rideBackBtn.textContent = "Remove ride back";
+    rideBackBtn.textContent = "Remove out & back";
     scheduleElevationUpdate();
   } else {
     clearRideBack();
@@ -780,21 +913,6 @@ const chunkArray = (items, chunkSize) => {
     chunks.push(items.slice(i, i + chunkSize));
   }
   return chunks;
-};
-
-const downsamplePath = (points, maxPoints) => {
-  if (points.length <= maxPoints) {
-    return points;
-  }
-  const step = Math.ceil(points.length / maxPoints);
-  const sample = [];
-  for (let i = 0; i < points.length; i += step) {
-    sample.push(points[i]);
-  }
-  if (sample[sample.length - 1] !== points[points.length - 1]) {
-    sample.push(points[points.length - 1]);
-  }
-  return sample;
 };
 
 const decodePolyline = (encoded, precision = 6) => {
@@ -832,13 +950,11 @@ const decodePolyline = (encoded, precision = 6) => {
   return coordinates;
 };
 
-
 const getCyclingProfile = () => {
   switch (cyclingPriority.value) {
     case "roads":
       return "cycling-road";
     case "paths":
-      return "cycling-regular";
     case "balanced":
     default:
       return "cycling-regular";
@@ -864,17 +980,22 @@ const getCyclingUseRoads = () => {
   }
 };
 
-const getStoredApiKey = () => localStorage.getItem(ORS_KEY_STORAGE) || "";
+const getStoredApiKey = () => {
+  try {
+    return localStorage.getItem(ORS_KEY_STORAGE) || "";
+  } catch (_) {
+    return "";
+  }
+};
 
 const refreshApiKeyUI = () => {
   const hasKey = Boolean(getStoredApiKey());
-  const apiKeyContainer = apiKeyInput.closest(".api-key");
-  if (apiKeyContainer) {
-    apiKeyContainer.classList.toggle("has-key", hasKey);
+  if (apiKeyGroup) {
+    apiKeyGroup.classList.toggle("has-key", hasKey);
   }
   if (hasKey) {
     apiKeyInput.value = "";
-    apiKeyInput.placeholder = "Key saved";
+    apiKeyInput.placeholder = "Key saved — click Edit to change";
   } else {
     apiKeyInput.placeholder = "Paste OpenRouteService key";
   }
@@ -882,41 +1003,48 @@ const refreshApiKeyUI = () => {
 
 const saveApiKey = () => {
   const key = apiKeyInput.value.trim();
-  if (!key) {
-    localStorage.removeItem(ORS_KEY_STORAGE);
-    setStatus("API key cleared.");
-    refreshApiKeyUI();
+  try {
+    if (!key) {
+      localStorage.removeItem(ORS_KEY_STORAGE);
+      setStatus("API key cleared.");
+    } else {
+      localStorage.setItem(ORS_KEY_STORAGE, key);
+      setStatus("API key saved.");
+    }
+  } catch (_) {
+    setStatus("Unable to save key — storage unavailable.", true);
     return;
   }
-  localStorage.setItem(ORS_KEY_STORAGE, key);
-  setStatus("API key saved.");
   refreshApiKeyUI();
+  if (routingEnabled && providerSelect.value === "ors") {
+    scheduleRoutingUpdate(0);
+  }
 };
 
 const editApiKey = () => {
-  const apiKeyContainer = apiKeyInput.closest(".api-key");
-  if (apiKeyContainer) {
-    apiKeyContainer.classList.remove("has-key");
+  if (apiKeyGroup) {
+    apiKeyGroup.classList.remove("has-key");
   }
+  apiKeyInput.value = "";
   apiKeyInput.focus();
 };
 
 const openApiHelp = () => {
   apiHelpModal.classList.remove("hidden");
+  closeModalBtn.focus();
 };
 
 const closeApiHelp = () => {
   apiHelpModal.classList.add("hidden");
 };
 
-const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 12000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       mode: "cors",
       cache: "no-store",
-      referrerPolicy: "no-referrer",
       ...options,
       signal: controller.signal,
     });
@@ -930,7 +1058,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const shouldRetryStatus = (status) => status === 429 || (status >= 500 && status < 600);
 
-const fetchWithRetry = async (url, options = {}, retries = 2, timeoutMs = 8000) => {
+const fetchWithRetry = async (url, options = {}, retries = 2, timeoutMs = 12000) => {
   let attempt = 0;
   while (attempt <= retries) {
     try {
@@ -956,46 +1084,40 @@ const fetchWithRetry = async (url, options = {}, retries = 2, timeoutMs = 8000) 
   throw new Error("Retries exhausted.");
 };
 
-const fetchElevationsFromOpenTopo = async (points) => {
-  startTimer("Elevation: OpenTopo request");
-  const batches = chunkArray(points, 50);
+const fetchElevationsFromOpenMeteo = async (points) => {
+  startTimer("Elevation: Open-Meteo request");
+  const batches = chunkArray(points, 100);
   const elevations = [];
-  for (const batch of batches) {
-    const locations = batch
-      .map((point) => `${point.lat.toFixed(6)},${point.lng.toFixed(6)}`)
-      .join("|");
-    const url = `https://api.opentopodata.org/v1/srtm90m?locations=${locations}`;
+  for (let i = 0; i < batches.length; i += 1) {
+    const batch = batches[i];
+    const latitudes = batch.map((p) => p.lat.toFixed(5)).join(",");
+    const longitudes = batch.map((p) => p.lng.toFixed(5)).join(",");
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${latitudes}&longitude=${longitudes}`;
     let response;
     try {
-      logDebug(
-        `OpenTopo request: ${batch.length} points, url length ${url.length}, online ${navigator.onLine}, protocol ${location.protocol}`
-      );
-      response = await fetchWithRetry(url, {}, 2, 8000);
+      logDebug(`Open-Meteo request: ${batch.length} points`);
+      response = await fetchWithRetry(url, {}, 2, 12000);
     } catch (error) {
-      logDebug(
-        `OpenTopo fetch error: ${error?.name || "error"} ${error?.message || error}`
-      );
+      logDebug(`Open-Meteo fetch error: ${error?.name || "error"} ${error?.message || error}`);
       throw error;
     }
-    logDebug(`OpenTopo status: ${response.status}`);
     if (!response.ok) {
       const text = await response.text();
-      logDebug(`OpenTopo body: ${text.slice(0, 200)}`);
-      throw new Error("OpenTopoData request failed.");
+      logDebug(`Open-Meteo ${response.status}: ${text.slice(0, 160)}`);
+      throw new Error(`Open-Meteo ${response.status}`);
     }
     const data = await response.json();
-    if (!data.results) {
-      logDebug(`OpenTopo missing results: ${JSON.stringify(data).slice(0, 200)}`);
-      throw new Error("OpenTopoData response missing data.");
+    if (!Array.isArray(data.elevation)) {
+      throw new Error("Open-Meteo response missing elevation array.");
     }
-    data.results.forEach((result) => {
-      if (typeof result.elevation === "number") {
-        elevations.push(result.elevation);
-      }
+    data.elevation.forEach((value) => {
+      if (typeof value === "number") elevations.push(value);
     });
-    await sleep(300);
+    if (i < batches.length - 1) {
+      await sleep(200);
+    }
   }
-  endTimer("Elevation: OpenTopo request", `(${elevations.length} points)`);
+  endTimer("Elevation: Open-Meteo request", `(${elevations.length} points)`);
   return elevations;
 };
 
@@ -1010,23 +1132,19 @@ const fetchElevationsFromOpenElevation = async (points) => {
     const url = `https://api.open-elevation.com/api/v1/lookup?locations=${locations}`;
     let response;
     try {
-      logDebug(
-        `Open-Elevation request: ${batch.length} points, url length ${url.length}`
-      );
-      response = await fetchWithTimeout(url);
+      logDebug(`Open-Elevation request: ${batch.length} points`);
+      response = await fetchWithRetry(url, {}, 1, 25000);
     } catch (error) {
       logDebug(`Open-Elevation fetch error: ${error?.name || "error"} ${error?.message || error}`);
       throw error;
     }
-    logDebug(`Open-Elevation status: ${response.status}`);
     if (!response.ok) {
       const text = await response.text();
-      logDebug(`Open-Elevation body: ${text.slice(0, 200)}`);
-      throw new Error("Open-Elevation request failed.");
+      logDebug(`Open-Elevation ${response.status}: ${text.slice(0, 160)}`);
+      throw new Error(`Open-Elevation ${response.status}`);
     }
     const data = await response.json();
     if (!data.results) {
-      logDebug(`Open-Elevation missing results: ${JSON.stringify(data).slice(0, 200)}`);
       throw new Error("Open-Elevation response missing data.");
     }
     data.results.forEach((result) => {
@@ -1039,7 +1157,6 @@ const fetchElevationsFromOpenElevation = async (points) => {
   return elevations;
 };
 
-
 const fetchElevations = async () => {
   const segments = getElevationSegments();
   if (!segments || segments.length === 0) {
@@ -1049,7 +1166,7 @@ const fetchElevations = async () => {
 
   if (location.protocol === "file:") {
     setStatus(
-      "Elevation requires a local server (file:// blocks CORS).",
+      "Elevation needs a local server — file:// blocks cross-origin calls.",
       true
     );
     logDebug("Elevation blocked: running from file://");
@@ -1062,7 +1179,7 @@ const fetchElevations = async () => {
 
   elevationInFlight = true;
   elevationBtn.disabled = true;
-  setStatus("Fetching elevation data...");
+  setStatus("Fetching elevation data…");
 
   try {
     startTimer("Elevation: sample points");
@@ -1070,17 +1187,11 @@ const fetchElevations = async () => {
     endTimer("Elevation: sample points", `(${sampledPath.length} points)`);
     elevationSamples = sampledPath;
 
-    if (providerSelect.value === "ors") {
-      logDebug(
-        "ORS elevation blocked by CORS on public API; using OpenTopo fallback."
-      );
-    }
-
-    startTimer("Elevation: OpenTopo total");
-    let elevations = await fetchElevationsFromOpenTopo(sampledPath);
-    endTimer("Elevation: OpenTopo total");
+    startTimer("Elevation: Open-Meteo total");
+    const elevations = await fetchElevationsFromOpenMeteo(sampledPath);
+    endTimer("Elevation: Open-Meteo total");
     if (elevations.length < 2) {
-      throw new Error("OpenTopoData returned insufficient data.");
+      throw new Error("Open-Meteo returned insufficient data.");
     }
 
     elevationData = elevations;
@@ -1088,6 +1199,8 @@ const fetchElevations = async () => {
     renderChart(elevationData, elevationSamples);
     setStatus("Elevation updated.");
   } catch (error) {
+    logDebug(`Open-Meteo failed: ${error?.message || error}. Falling back to Open-Elevation…`);
+    setStatus("Primary elevation source unavailable. Trying backup (this can take up to 25s)…");
     try {
       startTimer("Elevation: fallback sample");
       const sampledPath = buildElevationSamplePoints(segments, 100);
@@ -1102,14 +1215,13 @@ const fetchElevations = async () => {
       elevationData = elevations;
       updateElevationStats(elevationData);
       renderChart(elevationData, elevationSamples);
-      setStatus("Elevation updated (fallback).");
+      setStatus("Elevation updated (backup source).");
       return;
     } catch (fallbackError) {
-      logDebug(`Elevation error: ${error?.message || error}`);
-      logDebug(`Fallback error: ${fallbackError?.message || fallbackError}`);
+      logDebug(`Open-Elevation failed: ${fallbackError?.message || fallbackError}`);
       resetElevation();
       setStatus(
-        "Unable to load elevation data. Try again later or reduce points.",
+        "Couldn't load elevation. Both providers are rate-limited or down — please try again in a moment.",
         true
       );
     }
@@ -1117,7 +1229,6 @@ const fetchElevations = async () => {
     elevationInFlight = false;
     updateButtons();
   }
-
 };
 
 const testElevationEndpoints = async () => {
@@ -1125,15 +1236,15 @@ const testElevationEndpoints = async () => {
     L.latLng(-33.8688, 151.2093),
     L.latLng(-33.87, 151.215),
   ];
-  logDebug("Testing OpenTopoData endpoint...");
+  logDebug("Testing Open-Meteo endpoint…");
   try {
-    const results = await fetchElevationsFromOpenTopo(testPoints);
-    logDebug(`OpenTopoData OK (${results.length} points)`);
+    const results = await fetchElevationsFromOpenMeteo(testPoints);
+    logDebug(`Open-Meteo OK (${results.length} points)`);
   } catch (error) {
-    logDebug(`OpenTopoData test failed: ${error?.message || error}`);
+    logDebug(`Open-Meteo test failed: ${error?.message || error}`);
   }
 
-  logDebug("Testing Open-Elevation endpoint...");
+  logDebug("Testing Open-Elevation endpoint…");
   try {
     const results = await fetchElevationsFromOpenElevation(testPoints);
     logDebug(`Open-Elevation OK (${results.length} points)`);
@@ -1190,6 +1301,16 @@ const renderChart = (elevations, points) => {
       ? labels.map((x, index) => ({ x, y: data[index] }))
       : [];
 
+  const muted = getComputedStyle(document.documentElement)
+    .getPropertyValue("--muted")
+    .trim() || "#7a7568";
+  const inkSoft = getComputedStyle(document.documentElement)
+    .getPropertyValue("--ink-soft")
+    .trim() || "#3a3b36";
+  const border = getComputedStyle(document.documentElement)
+    .getPropertyValue("--border")
+    .trim() || "#e6ddc8";
+
   if (elevationChart) {
     elevationChart.destroy();
   }
@@ -1201,37 +1322,42 @@ const renderChart = (elevations, points) => {
         {
           label: "Elevation (m)",
           data: dataPoints,
-          borderColor: "#f97316",
-          backgroundColor: "rgba(249, 115, 22, 0.2)",
+          borderColor: ROUTE_COLOR,
+          backgroundColor: `${ROUTE_COLOR}26`,
           fill: true,
           tension: 0.35,
           pointRadius: 0,
+          borderWidth: 2,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
       scales: {
         x: {
           type: "linear",
-          title: {
-            display: true,
-            text: `Distance (${unitLabel})`,
-          },
+          grid: { color: border },
           ticks: {
+            color: muted,
             maxTicksLimit: 6,
             autoSkip: true,
             callback: (value) => formatChartDistance(Number(value)),
           },
+          title: {
+            display: true,
+            text: `Distance (${unitLabel})`,
+            color: inkSoft,
+          },
         },
         y: {
+          grid: { color: border },
+          ticks: { color: muted, maxTicksLimit: 5 },
           title: {
             display: true,
             text: "Elevation (m)",
-          },
-          ticks: {
-            maxTicksLimit: 5,
+            color: inkSoft,
           },
         },
       },
@@ -1292,14 +1418,14 @@ const buildRouteWithValhalla = async () => {
   }
 
   const url = `${VALHALLA_URL}${encodeURIComponent(JSON.stringify(payload))}`;
-  setStatus("Fetching route from Valhalla...");
+  setStatus("Fetching route from Valhalla…");
 
   try {
     startTimer("Routing: Valhalla fetch");
     const response = await fetch(url);
     endTimer("Routing: Valhalla fetch");
     if (!response.ok) {
-      throw new Error("Routing request failed.");
+      throw new Error(`Routing request failed (${response.status}).`);
     }
     startTimer("Routing: Valhalla parse");
     const data = await response.json();
@@ -1313,6 +1439,7 @@ const buildRouteWithValhalla = async () => {
     startTimer("Routing: Valhalla decode");
     const merged = [];
     routeSegments = [];
+    const steps = [];
     data.trip.legs.forEach((leg, index) => {
       if (!leg.shape) {
         return;
@@ -1325,6 +1452,14 @@ const buildRouteWithValhalla = async () => {
       if (decoded.length > 1) {
         routeSegments.push(decoded);
       }
+      if (Array.isArray(leg.maneuvers)) {
+        leg.maneuvers.forEach((m) => {
+          steps.push({
+            instruction: m.instruction || m.verbal_pre_transition_instruction,
+            distance: (m.length || 0) * METERS_IN_KM,
+          });
+        });
+      }
     });
     endTimer("Routing: Valhalla decode", `(${merged.length} points)`);
     routeGeometry = merged.length > 1 ? merged : null;
@@ -1335,13 +1470,12 @@ const buildRouteWithValhalla = async () => {
       rideBackGeometry = buildRideBackGeometry(routeGeometry);
     }
     cacheRoute(cacheKey, routeGeometry, routeSegments, routeDistanceMeters, steps);
-    allowAutoFit = true;
+    allowAutoFit = false;
     resetElevation();
     updatePolylines();
     updateDistance();
-    const steps = data.trip.legs.flatMap((leg) => leg.maneuvers || []);
     renderDirections(steps);
-    setStatus("Routing updated.");
+    setStatus("Route updated.");
     scheduleElevationUpdate();
   } catch (error) {
     routeGeometry = null;
@@ -1350,7 +1484,7 @@ const buildRouteWithValhalla = async () => {
     updateDistance();
     clearDirections();
     setStatus(
-      "Unable to route this path. Try fewer points or another provider.",
+      "Couldn't route that path. Try fewer points or another provider.",
       true
     );
     logDebug(`Routing error: ${error?.message || error}`);
@@ -1373,8 +1507,7 @@ const buildRoute = async () => {
 
   const apiKey = getStoredApiKey();
   if (!apiKey) {
-    setStatus("Add your OpenRouteService API key to route.", true);
-    openApiHelp();
+    setStatus("Add an OpenRouteService key to use this provider.", true);
     return;
   }
 
@@ -1395,7 +1528,7 @@ const buildRoute = async () => {
       Number(point.lng.toFixed(6)),
       Number(point.lat.toFixed(6)),
     ]),
-    instructions: false,
+    instructions: true,
     options: {
       avoid_features: ["steps"],
     },
@@ -1410,7 +1543,7 @@ const buildRoute = async () => {
   }
   const url = `${ORS_URL}/${profile}/geojson`;
 
-  setStatus("Fetching route from OpenRouteService...");
+  setStatus("Fetching route from OpenRouteService…");
 
   try {
     startTimer("Routing: ORS fetch");
@@ -1424,7 +1557,9 @@ const buildRoute = async () => {
     });
     endTimer("Routing: ORS fetch");
     if (!response.ok) {
-      throw new Error("Routing request failed.");
+      const text = await response.text().catch(() => "");
+      logDebug(`ORS body: ${text.slice(0, 200)}`);
+      throw new Error(`Routing request failed (${response.status}).`);
     }
     startTimer("Routing: ORS parse");
     const data = await response.json();
@@ -1468,11 +1603,11 @@ const buildRoute = async () => {
       ) || [];
     renderDirections(steps);
     cacheRoute(cacheKey, routeGeometry, routeSegments, routeDistanceMeters, steps);
-    allowAutoFit = true;
+    allowAutoFit = false;
     resetElevation();
     updatePolylines();
     updateDistance();
-    setStatus("Routing updated.");
+    setStatus("Route updated.");
     scheduleElevationUpdate();
   } catch (error) {
     routeGeometry = null;
@@ -1481,7 +1616,7 @@ const buildRoute = async () => {
     updateDistance();
     clearDirections();
     setStatus(
-      "Unable to route this path. Check API key or try a different provider.",
+      "Couldn't route that path. Check your API key or try Valhalla.",
       true
     );
     logDebug(`Routing error: ${error?.message || error}`);
@@ -1499,10 +1634,10 @@ const refreshRouteIfNeeded = () => {
 
 const locateUser = () => {
   if (!navigator.geolocation) {
-    setStatus("Geolocation is not supported in this browser.", true);
+    setStatus("Geolocation isn't supported in this browser.", true);
     return;
   }
-  setStatus("Locating you...");
+  setStatus("Locating you…");
   navigator.geolocation.getCurrentPosition(
     (position) => {
       const latlng = L.latLng(
@@ -1514,20 +1649,24 @@ const locateUser = () => {
       }
       locationMarker = L.circleMarker(latlng, {
         radius: 7,
-        color: "#16a34a",
+        color: ACCENT,
         weight: 2,
-        fillColor: "#86efac",
+        fillColor: "#d1ecd9",
         fillOpacity: 0.9,
       }).addTo(map);
       map.setView(latlng, 14);
-      localStorage.setItem(
-        LOCATION_STORAGE,
-        JSON.stringify({ lat: latlng.lat, lng: latlng.lng })
-      );
-      setStatus("Location found.");
+      try {
+        localStorage.setItem(
+          LOCATION_STORAGE,
+          JSON.stringify({ lat: latlng.lat, lng: latlng.lng })
+        );
+      } catch (_) {
+        /* ignore */
+      }
+      setStatus("Centred on your location.");
     },
     () => {
-      setStatus("Unable to access your location. Using default view.", true);
+      setStatus("Couldn't access your location.", true);
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -1540,32 +1679,44 @@ const loadSavedLocation = () => {
       return null;
     }
     const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.lat === "number" &&
-      typeof parsed?.lng === "number"
-    ) {
+    if (typeof parsed?.lat === "number" && typeof parsed?.lng === "number") {
       return L.latLng(parsed.lat, parsed.lng);
     }
-  } catch (error) {
+  } catch (_) {
     return null;
   }
   return null;
 };
 
+const themeLabel = document.querySelector(".theme-label");
+
 const applyTheme = (theme) => {
   document.documentElement.setAttribute("data-theme", theme);
-  if (theme === "dark") {
-    themeBtn.textContent = "☀️ Light mode";
-    themeBtn.classList.add("active");
-  } else {
-    themeBtn.textContent = "🌙 Dark mode";
-    themeBtn.classList.remove("active");
+  if (themeLabel) {
+    themeLabel.textContent = theme === "dark" ? "Light" : "Dark";
   }
-  localStorage.setItem("map-route-theme", theme);
+  themeBtn.setAttribute(
+    "aria-label",
+    theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+  );
+  try {
+    localStorage.setItem(THEME_STORAGE, theme);
+  } catch (_) {
+    /* ignore */
+  }
+  // Re-render chart so axis colors pick up the new theme.
+  if (elevationData && elevationSamples) {
+    renderChart(elevationData, elevationSamples);
+  }
 };
 
 const initTheme = () => {
-  const saved = localStorage.getItem("map-route-theme");
+  let saved = null;
+  try {
+    saved = localStorage.getItem(THEME_STORAGE);
+  } catch (_) {
+    /* ignore */
+  }
   if (saved === "light" || saved === "dark") {
     applyTheme(saved);
     return;
@@ -1574,12 +1725,32 @@ const initTheme = () => {
   applyTheme(prefersDark ? "dark" : "light");
 };
 
-const setUnitsMode = (nextUseMiles) => {
+const setUnitsMode = (nextUseMiles, persist = true) => {
   useMiles = nextUseMiles;
-  unitsBtn.textContent = useMiles ? "🧭 Miles" : "🗺️ Kilometers";
-  unitsBtn.classList.toggle("active", useMiles);
+  const icon = unitsBtn.querySelector(".btn-icon");
+  const label = unitsBtn.querySelector(".btn-label");
+  if (icon) icon.textContent = useMiles ? "mi" : "km";
+  if (label) label.textContent = useMiles ? "Miles" : "Kilometres";
+  unitsBtn.setAttribute("aria-pressed", useMiles ? "true" : "false");
   updateDistance();
   renderChart(elevationData, elevationSamples);
+  if (persist) {
+    try {
+      localStorage.setItem(UNITS_STORAGE, useMiles ? "mi" : "km");
+    } catch (_) {
+      /* ignore */
+    }
+  }
+};
+
+const initUnits = () => {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(UNITS_STORAGE);
+  } catch (_) {
+    /* ignore */
+  }
+  setUnitsMode(saved === "mi", false);
 };
 
 const buildGpx = (points) => {
@@ -1601,7 +1772,7 @@ const buildGpx = (points) => {
 const downloadGpx = () => {
   const path = getActivePath();
   if (path.length < 2) {
-    setStatus("Add at least two points to export GPX.", true);
+    setStatus("Add at least two points before exporting.", true);
     return;
   }
   const gpx = buildGpx(path);
@@ -1609,7 +1780,8 @@ const downloadGpx = () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "route.gpx";
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  link.download = `map-a-route-${stamp}.gpx`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -1617,9 +1789,30 @@ const downloadGpx = () => {
   setStatus("GPX exported.");
 };
 
+const setDebugOpen = (open) => {
+  debugPanel.dataset.open = open ? "true" : "false";
+  debugToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  try {
+    localStorage.setItem(DEBUG_STORAGE, open ? "1" : "0");
+  } catch (_) {
+    /* ignore */
+  }
+};
+
+const initDebug = () => {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(DEBUG_STORAGE);
+  } catch (_) {
+    /* ignore */
+  }
+  setDebugOpen(saved === "1");
+};
+
+// ------- Event wiring -------
 map.on("click", (event) => addPoint(event.latlng));
 undoBtn.addEventListener("click", undoPoint);
-clearBtn.addEventListener("click", clearRoute);
+clearBtn.addEventListener("click", () => clearRoute());
 loopBtn.addEventListener("click", toggleLoop);
 elevationBtn.addEventListener("click", fetchElevations);
 routingToggle.addEventListener("change", () => {
@@ -1630,12 +1823,21 @@ routingToggle.addEventListener("change", () => {
   resetElevation();
   clearDirections();
   clearRideBack();
-  scheduleRoutingUpdate();
+  updateRoutingOptionsState();
+  if (routingEnabled) {
+    if (providerSelect.value === "ors" && !getStoredApiKey()) {
+      openApiHelp();
+    }
+    scheduleRoutingUpdate(0);
+  } else {
+    updatePolylines();
+    updateDistance();
+  }
   persistCurrentRoute();
 });
 autoRouteToggle.addEventListener("change", () => {
   autoRoutingEnabled = autoRouteToggle.checked;
-  if (autoRoutingEnabled) {
+  if (autoRoutingEnabled && routingEnabled) {
     scheduleRoutingUpdate(0);
   }
 });
@@ -1663,6 +1865,13 @@ providerSelect.addEventListener("change", () => {
   clearDirections();
   clearRideBack();
   updateProviderControls();
+  if (
+    routingEnabled &&
+    providerSelect.value === "ors" &&
+    !getStoredApiKey()
+  ) {
+    openApiHelp();
+  }
   scheduleRoutingUpdate();
   persistCurrentRoute();
 });
@@ -1670,6 +1879,7 @@ saveKeyBtn.addEventListener("click", saveApiKey);
 editKeyBtn.addEventListener("click", editApiKey);
 apiKeyInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
+    event.preventDefault();
     saveApiKey();
   }
 });
@@ -1680,26 +1890,18 @@ apiHelpModal.addEventListener("click", (event) => {
     closeApiHelp();
   }
 });
-rideBackBtn.addEventListener("click", toggleRideBack);
-directionsToggleBtn.addEventListener("click", () => {
-  const isHidden = directionsPanel.classList.contains("hidden");
-  if (isHidden) {
-    directionsPanel.classList.remove("hidden");
-    directionsToggleBtn.textContent = "🧭 Hide directions";
-  } else {
-    directionsPanel.classList.add("hidden");
-    directionsToggleBtn.textContent = "🧭 Show directions";
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !apiHelpModal.classList.contains("hidden")) {
+    closeApiHelp();
   }
 });
+rideBackBtn.addEventListener("click", toggleRideBack);
+directionsToggleBtn.addEventListener("click", () => {
+  directionsPanel.classList.add("hidden");
+});
 debugToggleBtn.addEventListener("click", () => {
-  const isHidden = debugList.classList.contains("hidden");
-  if (isHidden) {
-    debugList.classList.remove("hidden");
-    debugToggleBtn.textContent = "Hide debug";
-  } else {
-    debugList.classList.add("hidden");
-    debugToggleBtn.textContent = "Show debug";
-  }
+  const open = debugPanel.dataset.open !== "true";
+  setDebugOpen(open);
 });
 testElevationBtn.addEventListener("click", testElevationEndpoints);
 clearDebugBtn.addEventListener("click", clearDebugLog);
@@ -1711,50 +1913,56 @@ themeBtn.addEventListener("click", () => {
   applyTheme(current === "dark" ? "light" : "dark");
 });
 saveRouteBtn.addEventListener("click", saveNamedRoute);
+routeNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    saveNamedRoute();
+  }
+});
 loadRouteBtn.addEventListener("click", loadNamedRoute);
 deleteRouteBtn.addEventListener("click", deleteNamedRoute);
 gpxInput.addEventListener("change", handleGpxImport);
 updateRouteBtn.addEventListener("click", () => {
   if (!routingEnabled) {
-    setStatus("Enable Snap to roads to update route.", true);
+    setStatus("Turn on Snap to roads first.", true);
     return;
   }
   refreshRouteIfNeeded();
 });
 
+// ------- Bootstrap -------
 routingEnabled = routingToggle.checked;
+autoRoutingEnabled = autoRouteToggle.checked;
 initTheme();
-setUnitsMode(false);
+initUnits();
+initDebug();
 updateCyclingControls();
 updateProviderControls();
+updateRoutingOptionsState();
 updateButtons();
 renderChart(null, null);
-setStatus("Ready. Click on the map to start.");
 clearDirections();
-
-autoRoutingEnabled = autoRouteToggle.checked;
-
-apiKeyInput.value = getStoredApiKey();
+apiKeyInput.value = "";
 refreshApiKeyUI();
-if (!DEBUG_DEFAULT_OPEN) {
-  debugList.classList.add("hidden");
-  debugToggleBtn.textContent = "Show debug";
-}
 refreshSavedRoutesSelect();
-restoreCurrentRoute();
-const savedLocation = loadSavedLocation();
-if (savedLocation && latlngs.length === 0) {
-  if (locationMarker) {
-    locationMarker.remove();
+
+const restored = restoreCurrentRoute();
+if (!restored) {
+  setStatus("Ready — click the map to start.");
+  const savedLocation = loadSavedLocation();
+  if (savedLocation) {
+    map.setView(savedLocation, 14);
+    if (locationMarker) {
+      locationMarker.remove();
+    }
+    locationMarker = L.circleMarker(savedLocation, {
+      radius: 7,
+      color: ACCENT,
+      weight: 2,
+      fillColor: "#d1ecd9",
+      fillOpacity: 0.9,
+    }).addTo(map);
+  } else {
+    locateUser();
   }
-  locationMarker = L.circleMarker(savedLocation, {
-    radius: 7,
-    color: "#16a34a",
-    weight: 2,
-    fillColor: "#86efac",
-    fillOpacity: 0.9,
-  }).addTo(map);
-  map.setView(savedLocation, 14);
-} else if (latlngs.length === 0) {
-  locateUser();
 }

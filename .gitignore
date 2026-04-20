@@ -1,0 +1,10 @@
+# OS / editor junk
+.DS_Store
+Thumbs.db
+nul.txt
+*.swp
+.vscode/
+.idea/
+
+# Logs
+*.log
