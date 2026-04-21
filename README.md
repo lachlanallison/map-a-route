@@ -31,4 +31,4 @@ Built by [Lachlan](https://lachlanallison.com).
 
 ## License
 
-MIT.
+[MIT](LICENSE) — full text in the repo root.

@@ -1,33 +1,66 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Canonical & absolute social URLs — update if you use a custom domain -->
+    <link rel="canonical" href="https://lachlanallison.github.io/map-a-route/" />
     <title>Map a Route — plan your runs and rides</title>
     <meta
       name="description"
-      content="A calm, fast route planner for runners and cyclists. Snap to paths, see elevation, and export GPX — all in your browser."
+      content="A calm, fast route planner for runners and cyclists. Snap to paths, see elevation, export GPX, and save routes — all in your browser. No account required."
     />
-    <meta name="robots" content="index,follow" />
-    <meta name="author" content="Map a Route" />
+    <meta
+      name="keywords"
+      content="route planner, GPX export, cycling route, running route, elevation profile, map planner, Valhalla routing, OpenStreetMap, bike route planner, jog planner"
+    />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="googlebot" content="index,follow" />
+    <meta name="author" content="Lachlan Allison" />
     <meta name="application-name" content="Map a Route" />
-    <meta name="theme-color" content="#2f6b4f" />
-    <meta name="referrer" content="no-referrer-when-downgrade" />
-    <meta property="og:title" content="Map a Route" />
+    <meta name="theme-color" content="#2f6b4f" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#12140f" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-mobile-web-app-title" content="Map a Route" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="msapplication-TileColor" content="#2f6b4f" />
+
+    <meta property="og:site_name" content="Map a Route" />
+    <meta property="og:title" content="Map a Route — plan your runs and rides" />
     <meta
       property="og:description"
-      content="Plan running and cycling routes with distance, elevation, and optional path snapping."
+      content="Plan running and cycling routes with distance, elevation, and path snapping. Export GPX — free in your browser."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="assets/og-image.svg" />
-    <meta property="og:image:alt" content="Map a Route preview" />
+    <meta property="og:url" content="https://lachlanallison.github.io/map-a-route/" />
+    <meta property="og:locale" content="en_AU" />
+    <meta
+      property="og:image"
+      content="https://lachlanallison.github.io/map-a-route/assets/og-image.png"
+    />
+    <meta
+      property="og:image:secure_url"
+      content="https://lachlanallison.github.io/map-a-route/assets/og-image.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Map a Route — route planner with map preview and tagline" />
+
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Map a Route" />
+    <meta name="twitter:title" content="Map a Route — plan your runs and rides" />
     <meta
       name="twitter:description"
-      content="Plan running and cycling routes with distance, elevation, and optional path snapping."
+      content="Plan running and cycling routes with distance, elevation, and path snapping. Export GPX — free in your browser."
     />
-    <meta name="twitter:image" content="assets/og-image.svg" />
+    <meta
+      name="twitter:image"
+      content="https://lachlanallison.github.io/map-a-route/assets/og-image.png"
+    />
+    <meta name="twitter:image:alt" content="Map a Route — route planner preview card" />
+
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.svg" />
     <script type="application/ld+json">
@@ -35,10 +68,47 @@
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "Map a Route",
+        "url": "https://lachlanallison.github.io/map-a-route/",
         "applicationCategory": "SportsApplication",
-        "operatingSystem": "All",
-        "description": "Plan running and cycling routes with distance, elevation, and snapping to paths.",
-        "browserRequirements": "Requires JavaScript and internet access for map tiles and routing."
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript. Requires internet access for map tiles, routing, and elevation APIs.",
+        "description": "A calm, fast route planner for runners and cyclists. Snap to paths, see elevation, export GPX, and save routes in the browser.",
+        "image": "https://lachlanallison.github.io/map-a-route/assets/og-image.png",
+        "screenshot": "https://lachlanallison.github.io/map-a-route/assets/og-image.png",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "AUD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Lachlan Allison",
+          "url": "https://lachlanallison.com"
+        },
+        "sameAs": ["https://github.com/lachlanallison/map-a-route"],
+        "isAccessibleForFree": true,
+        "inLanguage": "en-AU"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Map a Route — plan your runs and rides",
+        "url": "https://lachlanallison.github.io/map-a-route/",
+        "description": "A calm, fast route planner for runners and cyclists. Snap to paths, see elevation, export GPX, and save routes in the browser.",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Map a Route",
+          "url": "https://lachlanallison.github.io/map-a-route/"
+        },
+        "primaryImageOfPage": {
+          "@type": "ImageObject",
+          "url": "https://lachlanallison.github.io/map-a-route/assets/og-image.png",
+          "width": 1200,
+          "height": 630
+        },
+        "inLanguage": "en-AU"
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

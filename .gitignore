@@ -8,3 +8,6 @@ nul.txt
 
 # Logs
 *.log
+
+# Local pngquant Windows build (download from https://pngquant.org/pngquant-windows.zip if needed)
+tools/pngquant/
