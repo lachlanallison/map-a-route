@@ -228,21 +228,29 @@ button, .as-label {
 .layout {
   display: grid;
   grid-template-columns: 340px 1fr;
+  grid-template-areas:
+    "sidebar workspace"
+    "sidebar footer";
   gap: 20px;
   padding: 20px 24px 24px;
   max-width: 1600px;
   margin: 0 auto;
   align-items: start;
 }
+.sidebar { grid-area: sidebar; }
+.workspace { grid-area: workspace; }
+.footer { grid-area: footer; }
 
 @media (max-width: 980px) {
   .layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "workspace"
+      "sidebar"
+      "footer";
     padding: 16px;
     gap: 16px;
   }
-  .workspace { order: 0; }
-  .sidebar { order: 1; }
   .intro { display: none; }
 }
 
@@ -255,6 +263,7 @@ button, .as-label {
   max-height: calc(100vh - 96px);
   overflow-y: auto;
   padding-right: 4px;
+  align-self: start;
 }
 
 @media (max-width: 980px) {

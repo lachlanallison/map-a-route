@@ -3,11 +3,30 @@ const map = L.map("map", { zoomControl: true }).setView(
   12
 );
 
-L.tileLayer("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", {
+const cyclosmTile = L.tileLayer("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", {
   attribution:
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://www.cyclosm.org/">CyclOSM</a>',
   maxZoom: 20,
-}).addTo(map);
+});
+
+const osmTile = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 19,
+});
+
+let activeTileLayer = cyclosmTile;
+activeTileLayer.addTo(map);
+
+const updateTileLayer = () => {
+  const isRunning = activitySelect.value === "running";
+  const newLayer = isRunning ? osmTile : cyclosmTile;
+  if (newLayer !== activeTileLayer) {
+    map.removeLayer(activeTileLayer);
+    newLayer.addTo(map);
+    activeTileLayer = newLayer;
+  }
+};
 
 const ACCENT = getComputedStyle(document.documentElement)
   .getPropertyValue("--accent")
@@ -1847,6 +1866,7 @@ activitySelect.addEventListener("change", () => {
   resetElevation();
   clearDirections();
   updateCyclingControls();
+  updateTileLayer();
   refreshRouteIfNeeded();
   persistCurrentRoute();
 });
@@ -1939,6 +1959,7 @@ initDebug();
 updateCyclingControls();
 updateProviderControls();
 updateRoutingOptionsState();
+updateTileLayer();
 updateButtons();
 renderChart(null, null);
 clearDirections();
