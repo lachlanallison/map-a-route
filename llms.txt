@@ -1,0 +1,25 @@
+# Map a Route
+# https://lachlanallison.github.io/map-a-route/
+
+> Calm, fast route planner for runners and cyclists. Click to drop points, snap to real paths, view elevation, export GPX — all in the browser. No account required.
+
+## App
+- /
+
+## Features
+- Interactive map with CyclOSM (cycling) and OpenStreetMap (running) tiles
+- Snap to roads and paths via Valhalla (no key) or OpenRouteService (optional user key)
+- Elevation profile via Open-Meteo with Open-Elevation backup
+- GPX import and export
+- Out-and-back and finish-loop helpers, turn-by-turn directions
+- Save routes locally in browser storage
+- Light/dark theme, miles/kilometres toggle
+
+## Privacy
+- Static site; routing and elevation use third-party APIs only when planning routes
+- OpenRouteService keys stored in user localStorage only
+
+## About
+- Built by Lachlan Allison: https://lachlanallison.com/
+- Source: https://github.com/lachlanallison/map-a-route
+- Listed on: https://localhtmltools.lachlanallison.com/
